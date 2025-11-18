@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import NavBar from "./components/navBar";
 
 export default function Agenda() {
     return (
@@ -10,6 +11,7 @@ export default function Agenda() {
             }}
         >
             <Text>This is the Agenda Page</Text>
+            <NavBar />
         </View>
     );
 }

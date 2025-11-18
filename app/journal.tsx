@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import NavBar from "./components/navBar";
 
 export default function habitTracker() {
     return (
@@ -10,6 +11,7 @@ export default function habitTracker() {
             }}
         >
             <Text>This is the Journal Page.</Text>
+            <NavBar />
         </View>
     );
 }
