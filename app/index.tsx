@@ -1,4 +1,5 @@
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -11,24 +12,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "./components/navBar";
 import WeatherBox from "./components/weatherBox";
 
+interface Task {
+    id: string;
+    title: string;
+    description: string;
+    date: string;
+    completed: boolean;
+    priority: "high" | "medium" | "low";
+}
+
 export default function Home() {
     const [userName, setUserName] = useState("User");
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState("");
-
-    //!Fake data
-    const todaysTasks = { completed: 3, total: 7 };
-    const completionPercentage = Math.round(
-        (todaysTasks.completed / todaysTasks.total) * 100
-    );
-
-    //! Fake data
-    const habits = [
-        { name: "Water", progress: 80 },
-        { name: "Exercise", progress: 40 },
-        { name: "Sleep", progress: 60 },
-    ];
-
+    const [tasks, setTasks] = useState<Task[]>([]);
+    
     const motivationalQuotes = [
         "The secret of getting ahead is getting started.",
         "Your future is created by what you do today.",
@@ -36,11 +34,45 @@ export default function Home() {
         "You're capable of amazing things.",
         "One day at a time.",
     ];
+    
+    const [randomQuote] = useState(
+        motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]
+    );
 
-    const randomQuote =
-        motivationalQuotes[
-            Math.floor(Math.random() * motivationalQuotes.length)
-        ];
+    // Load tasks from storage
+    useEffect(() => {
+        loadTasks();
+        
+        // Refresh tasks every second to stay in sync
+        const interval = setInterval(loadTasks, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const loadTasks = async () => {
+        try {
+            const savedTasks = await AsyncStorage.getItem("@agenda_tasks");
+            if (savedTasks !== null) {
+                setTasks(JSON.parse(savedTasks));
+            }
+        } catch (error) {
+            console.error("Error loading tasks:", error);
+        }
+    };
+    const today = new Date().toISOString().split("T")[0];
+    const todaysTasks = {
+        completed: tasks.filter((task) => task.date === today && task.completed).length,
+        total: tasks.filter((task) => task.date === today).length,
+    };
+    const completionPercentage = todaysTasks.total > 0
+        ? Math.round((todaysTasks.completed / todaysTasks.total) * 100)
+        : 0;
+
+    //! Fake data
+    const habits = [
+        { name: "Water", progress: 80 },
+        { name: "Exercise", progress: 40 },
+        { name: "Sleep", progress: 60 },
+    ];
 
     const handleEditName = () => {
         setTempName(userName);
@@ -84,14 +116,43 @@ export default function Home() {
                                 />
                             </View>
                             <Text style={styles.progressText}>
-                                {todaysTasks.completed} of {todaysTasks.total}{" "}
-                                tasks complete ({completionPercentage}%)
+                                {todaysTasks.total === 0
+                                    ? "No tasks for today"
+                                    : `${todaysTasks.completed} of ${todaysTasks.total} tasks complete (${completionPercentage}%)`}
                             </Text>
                         </View>
-                        <Text style={styles.placeholderText}>
-                            Task details will appear here when Agenda page is
-                            ready
-                        </Text>
+                        {todaysTasks.total > 0 ? (
+                            <View style={styles.taskListPreview}>
+                                {tasks
+                                    .filter((task) => task.date === today)
+                                    .slice(0, 3)
+                                    .map((task) => (
+                                        <View key={task.id} style={styles.taskPreviewItem}>
+                                            <Text style={task.completed ? styles.taskCompletedIcon : styles.taskPendingIcon}>
+                                                {task.completed ? "✓" : "○"}
+                                            </Text>
+                                            <Text
+                                                style={[
+                                                    styles.taskPreviewText,
+                                                    task.completed && styles.taskPreviewCompleted,
+                                                ]}
+                                                numberOfLines={1}
+                                            >
+                                                {task.title}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                {tasks.filter((task) => task.date === today).length > 3 && (
+                                    <Text style={styles.moreTasksText}>
+                                        +{tasks.filter((task) => task.date === today).length - 3} more...
+                                    </Text>
+                                )}
+                            </View>
+                        ) : (
+                            <Text style={styles.placeholderText}>
+                                Add tasks in the Agenda page
+                            </Text>
+                        )}
                     </View>
 
                     <View style={styles.section}>
@@ -356,5 +417,44 @@ const styles = StyleSheet.create({
         color: "#FFFFFF",
         fontWeight: "bold",
         fontSize: 14,
+    },
+    taskListPreview: {
+        marginTop: 10,
+    },
+    taskPreviewItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: "#F5F9FF",
+        borderRadius: 8,
+        marginBottom: 6,
+    },
+    taskCompletedIcon: {
+        fontSize: 16,
+        color: "#A5DD9B",
+        fontWeight: "bold",
+        marginRight: 10,
+    },
+    taskPendingIcon: {
+        fontSize: 16,
+        color: "#8BBCCC",
+        marginRight: 10,
+    },
+    taskPreviewText: {
+        fontSize: 14,
+        color: "#2D4356",
+        flex: 1,
+    },
+    taskPreviewCompleted: {
+        textDecorationLine: "line-through",
+        color: "#8BBCCC",
+    },
+    moreTasksText: {
+        fontSize: 12,
+        color: "#5B8FB9",
+        fontStyle: "italic",
+        textAlign: "center",
+        marginTop: 4,
     },
 });
