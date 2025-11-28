@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker"; // Import the package
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -22,6 +24,10 @@ interface JournalEntry {
 export default function Journal() {
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [modalVisible, setModalVisible] = useState(false);
+    
+    // State for the Date Picker visibility
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
     const [newEntry, setNewEntry] = useState({
         title: "",
         content: "",
@@ -97,6 +103,28 @@ export default function Journal() {
         setEntries(entries.filter((entry) => entry.id !== id));
     };
 
+    // Handle Date Change
+    const onChangeDate = (event: any, selectedDate?: Date) => {
+        const currentDate = selectedDate || new Date();
+        
+        setShowDatePicker(Platform.OS === 'ios'); 
+
+        if (event.type === "set" || Platform.OS === 'ios') {
+             // Convert date object to YYYY-MM-DD string
+            const formattedDate = currentDate.toISOString().split("T")[0];
+            setNewEntry({ ...newEntry, date: formattedDate });
+            // Close picker on Android immediately after selection
+            if(Platform.OS === 'android') setShowDatePicker(false);
+        } else {
+             // Cancel button pressed on Android
+             setShowDatePicker(false);
+        }
+    };
+
+    const toggleDatePicker = () => {
+        setShowDatePicker(!showDatePicker);
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -111,7 +139,6 @@ export default function Journal() {
 
             <ScrollView style={styles.scrollView}>
                 <View style={styles.entryContainer}>
-                    {/* Quote */}
                     {loadingQuote ? (
                         <ActivityIndicator size="small" color="#3B5BA5" />
                     ) : (
@@ -177,15 +204,38 @@ export default function Journal() {
                             placeholderTextColor="#999"
                         />
 
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Date (YYYY-MM-DD)"
-                            value={newEntry.date}
-                            onChangeText={(text) =>
-                                setNewEntry({ ...newEntry, date: text })
-                            }
-                            placeholderTextColor="#999"
-                        />
+                        {/* REPLACED MANUAL INPUT WITH DATE PICKER TRIGGER */}
+                        <TouchableOpacity 
+                            style={styles.input} 
+                            onPress={() => setShowDatePicker(true)}
+                        >
+                            <Text style={{ color: "#2D4356", fontSize: 16 }}>
+                                {newEntry.date}
+                            </Text>
+                        </TouchableOpacity>
+
+                        {/* DATE PICKER COMPONENT */}
+                        {showDatePicker && (
+                            <DateTimePicker
+                                testID="dateTimePicker"
+                                value={new Date(newEntry.date)}
+                                mode="date"
+                                display={Platform.OS === 'ios' ? "spinner" : "default"}
+                                onChange={onChangeDate}
+                                maximumDate={new Date()} // Prevent future dates
+                            />
+                        )}
+
+                        {showDatePicker && Platform.OS === 'ios' && (
+                             <View style={{flexDirection: 'row', justifyContent: 'space-around'}}>
+                                <TouchableOpacity 
+                                    style={[styles.modalButton, {backgroundColor: '#eee', marginBottom: 10}]}
+                                    onPress={() => setShowDatePicker(false)}
+                                >
+                                    <Text style={styles.cancelButtonText}>Done</Text>
+                                </TouchableOpacity>
+                             </View>
+                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
