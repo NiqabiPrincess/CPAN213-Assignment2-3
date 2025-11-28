@@ -3,7 +3,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   FlatList,
   Text,
@@ -15,7 +14,6 @@ import NavBar from "./components/navBar";
 
 type Habit = { id: string; name: string };
 
-// THEME COLORS — matching your Home page
 const COLORS = {
   background: "#0D1B2A",
   card: "#E8F0D9",
@@ -27,22 +25,20 @@ const COLORS = {
 };
 
 export default function HabitTracker() {
-  const [habit, setHabit] = useState<string>("");
+  const [habit, setHabit] = useState("");
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quote, setQuote] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   /* --------------------------
-     Load habits on page focus
+        Load saved habits
   -------------------------- */
   useFocusEffect(
     useCallback(() => {
       const loadHabits = async () => {
         try {
-          const json = await AsyncStorage.getItem("@habits");
-          if (json) {
-            setHabits(JSON.parse(json));
-          }
+          const stored = await AsyncStorage.getItem("@habits");
+          if (stored) setHabits(JSON.parse(stored));
         } catch (e) {
           console.log("Error loading habits:", e);
         }
@@ -52,18 +48,18 @@ export default function HabitTracker() {
   );
 
   /* --------------------------
-        Save habits to storage
+        Save Habits
   -------------------------- */
   const saveHabits = async (newHabits: Habit[]) => {
     try {
       await AsyncStorage.setItem("@habits", JSON.stringify(newHabits));
     } catch (e) {
-      console.log("Error saving:", e);
+      console.log("Saving error:", e);
     }
   };
 
   /* --------------------------
-        Motivational Quote
+       Fetch motivational quote
   -------------------------- */
   useEffect(() => {
     const fetchQuote = async () => {
@@ -72,69 +68,64 @@ export default function HabitTracker() {
         const data = await res.json();
         setQuote(data.content);
       } catch {
-        setQuote("Keep going — small steps count!");
+        setQuote("Small steps create big wins.");
       } finally {
         setLoading(false);
       }
     };
+
     fetchQuote();
   }, []);
 
   /* --------------------------
-            Add Habit
+          Add Habit
   -------------------------- */
   const addHabit = () => {
     if (!habit.trim()) return;
 
-    const newHabit = { id: Date.now().toString(), name: habit.trim() };
-    const updated = [newHabit, ...habits];
+    const newHabit: Habit = {
+      id: Date.now().toString(),
+      name: habit.trim(),
+    };
 
-    setHabits(updated);
-    saveHabits(updated);
+    setHabits((prev) => {
+      const updated = [newHabit, ...prev];
+      saveHabits(updated);
+      return updated;
+    });
 
     setHabit("");
   };
 
   /* --------------------------
-           Delete Habit
+         Delete Habit
   -------------------------- */
-  const deleteHabit = useCallback(
-    (id: string) => {
-      Alert.alert("Delete Habit", "Are you sure?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            const updated = habits.filter((h) => h.id !== id);
-            setHabits(updated);
-            saveHabits(updated);
-          },
-        },
-      ]);
-    },
-    [habits]
-  );
+  const deleteHabit = (id: string) => {
+    setHabits((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      saveHabits(updated);
+      return updated;
+    });
+  };
 
   /* --------------------------
-        Habit Item Animation
+      Habit Item Component
   -------------------------- */
   const HabitItem = ({ item }: { item: Habit }) => {
     const fade = useRef(new Animated.Value(0)).current;
-    const scale = useRef(new Animated.Value(0.95)).current;
 
     useEffect(() => {
-      Animated.parallel([
-        Animated.timing(fade, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-      ]).start();
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
     }, []);
 
     return (
       <Animated.View
         style={{
           opacity: fade,
-          transform: [{ scale }],
           backgroundColor: COLORS.card,
           padding: 12,
           borderRadius: 8,
@@ -143,18 +134,15 @@ export default function HabitTracker() {
       >
         <Text style={{ fontSize: 16, color: COLORS.text }}>{item.name}</Text>
 
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 8 }}>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 6 }}>
           <TouchableOpacity onPress={() => deleteHabit(item.id)}>
-            <Text style={{ color: COLORS.delete }}>Delete</Text>
+            <Text style={{ color: COLORS.delete, fontWeight: "bold" }}>Delete</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
     );
   };
 
-  /* --------------------------
-              UI
-  -------------------------- */
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: COLORS.background }}>
       <Text
@@ -168,9 +156,8 @@ export default function HabitTracker() {
         Habit Tracker
       </Text>
 
-      {/* Quote */}
       {loading ? (
-        <ActivityIndicator size="small" color="#fff" />
+        <ActivityIndicator color="#fff" />
       ) : (
         <Text
           style={{
@@ -183,7 +170,6 @@ export default function HabitTracker() {
         </Text>
       )}
 
-      {/* Input */}
       <TextInput
         value={habit}
         onChangeText={setHabit}
@@ -200,7 +186,6 @@ export default function HabitTracker() {
         }}
       />
 
-      {/* Add Button */}
       <TouchableOpacity
         onPress={addHabit}
         style={{
@@ -214,15 +199,15 @@ export default function HabitTracker() {
         <Text style={{ color: COLORS.buttonText, fontWeight: "bold" }}>Add Habit</Text>
       </TouchableOpacity>
 
-      {/* Habit List */}
       <FlatList
         data={habits}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <HabitItem item={item} />}
         ListEmptyComponent={
-          <Text style={{ color: "#bfc5cf", marginTop: 20 }}>No habits yet — add one above.</Text>
+          <Text style={{ color: "#bfc5cf", marginTop: 20 }}>
+            No habits yet — add one above.
+          </Text>
         }
-        contentContainerStyle={{ paddingBottom: 20 }}
       />
 
       <View style={{ marginTop: "auto" }}>
