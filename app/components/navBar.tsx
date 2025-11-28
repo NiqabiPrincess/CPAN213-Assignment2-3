@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: "#E8F3D6", // Pale Seafoam
+        backgroundColor: "#E8F3D6", // Pale SeaFoam
     },
     navText: {
         fontSize: 14,
